@@ -1,0 +1,5 @@
+﻿[
+  {"id": "Yes", "text_JP": "はい", "text_EN": "Yes", "text_CN": "是", "text_ZHTW": "是", "text_KR": "예"},
+  {"id": "No", "text_JP": "いいえ", "text_EN": "No", "text_CN": "否", "text_ZHTW": "否", "text_KR": "아니요"},
+  {"id": "Cancel", "text_JP": "キャンセル", "text_EN": "Cancel", "text_CN": "取消", "text_ZHTW": "取消", "text_KR": "취소"}
+]
