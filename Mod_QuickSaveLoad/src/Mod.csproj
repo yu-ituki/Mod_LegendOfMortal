@@ -157,9 +157,12 @@
 
   xcopy $(SolutionDir)data\resource\ $(TargetDir)resource\ /s /e /h /y /i
   xcopy $(SolutionDir)data\publish\* $(TargetDir) /s /e /h /y /i
-
   rd /s /q $(SolutionDir)\game_bepinex\plugins\$(SolutionName)\
   xcopy $(TargetDir) $(SolutionDir)\game_bepinex\plugins\$(SolutionName)\ /s /e /h /y /i
+
+  del $(SolutionDir)\$(SolutionName).zip
+  powershell -Command "Compress-Archive -Path '$(TargetDir)\*' -DestinationPath '$(SolutionDir)\$(SolutionName).zip' -Force"
+
   </PostBuildEvent>
     </PropertyGroup>
 </Project>
