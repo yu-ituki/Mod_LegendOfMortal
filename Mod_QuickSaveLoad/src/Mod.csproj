@@ -94,6 +94,14 @@
       <HintPath>.\..\game_dlls\Managed\UnityEngine.JSONSerializeModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="UnityEngine.IMGUIModule">
+      <HintPath>.\..\game_dlls\Managed\UnityEngine.IMGUIModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule">
+      <HintPath>.\..\game_dlls\Managed\UnityEngine.TextRenderingModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="LeanLocalization">
       <HintPath>.\..\game_dlls\Managed\LeanLocalization.dll</HintPath>
       <Private>False</Private>
@@ -124,6 +132,10 @@
       <HintPath>.\..\game_dlls\Managed\Mortal.Combat.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="Fungus">
+      <HintPath>.\..\game_dlls\Managed\Fungus.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Const.cs" />
@@ -131,7 +143,7 @@
     <Compile Include="ModConfig.cs" />
     <Compile Include="ModInfo.cs" />
     <Compile Include="Plugin.cs" />
-    <Compile Include="Lib\*" />
+    <Compile Include="Lib/*" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
