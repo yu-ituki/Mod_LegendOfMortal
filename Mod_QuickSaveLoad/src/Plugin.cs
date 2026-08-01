@@ -7,6 +7,7 @@ using System.Collections;
 using UnityEngine;
 using Fungus;
 
+
 namespace Mod
 {
 	[BepInPlugin(ModInfo.c_ModFullName, ModInfo.c_ModName, ModInfo.c_ModVersion)]
@@ -41,16 +42,16 @@ namespace Mod
 		}
 
 		public void Update() {
-			if (SaveSystem.Instance == null)
+			if (SaveSystem.Instance == null || ModConfig == null)
 				return;
 
-			if (Input.GetKeyDown(KeyCode.F5))
+			if (Input.GetKeyDown(ModConfig.QuickSaveKey.Value))
 				QuickSave();
 
-			if (Input.GetKeyDown(KeyCode.F9))
+			if (Input.GetKeyDown(ModConfig.QuickLoadKey.Value))
 				QuickLoad();
 		}
-
+		
 		/// <summary>
 		/// クイックセーブの実行処理（内部で安全性をチェックして判定・弾く）
 		/// </summary>
