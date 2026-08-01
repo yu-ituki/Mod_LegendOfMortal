@@ -1,8 +1,4 @@
-デフォルト値を **F6**（クイックセーブ）および **F9**（クイックロード）に変更した場合の README.md 修正案です。
-
----
-
-### README.md（更新案）
+### README.md
 
 ```markdown
 # Mod_QuickSaveLoad (活俠傳 / Legend of Mortal)
