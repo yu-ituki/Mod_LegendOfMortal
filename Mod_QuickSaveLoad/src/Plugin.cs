@@ -14,6 +14,10 @@ namespace Mod
 	public class Plugin : BaseUnityPlugin
 	{
 		private const string QUICK_SAVE_SLOT = "quicksave";
+		private static string[] c_SaveEnableDialogNames = new string[] {
+			"TalkMenuDialog",
+			"SectionFree01_MenuDialog",
+		};
 
 		public static Plugin Instance { get; private set; }
 
@@ -90,10 +94,10 @@ namespace Mod
 				// 判定ロジック:
 				// 1. dialog が null、またはアクティブでない場合は不可
 				// 2. 名前が "SectionFree01_MenuDialog" で始まらない場合は不可
-				bool isTargetDialog = dialog != null 
-									&& dialog.gameObject.activeInHierarchy 
-									&& dialog.name.StartsWith("SectionFree01_MenuDialog");
+				DebugUtil.LogWarning($"!!!!!!!!!!!!!!{dialog.name}");
 
+				bool isActiveDialog = dialog != null && dialog.gameObject.activeInHierarchy;
+				bool isTargetDialog = isActiveDialog && System.Array.Exists(c_SaveEnableDialogNames, (v) => dialog.name.StartsWith(v));
 				if (!isTargetDialog) {
 					ShowNotification("[QuickSave] 会話中のためセーブできません。");
 					return false;
