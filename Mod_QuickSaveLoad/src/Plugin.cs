@@ -17,6 +17,7 @@ namespace Mod
 		private static string[] c_SaveEnableDialogNames = new string[] {
 			"TalkMenuDialog",
 			"SectionFree01_MenuDialog",
+			"MeetMenuDialog",
 		};
 
 		public static Plugin Instance { get; private set; }
