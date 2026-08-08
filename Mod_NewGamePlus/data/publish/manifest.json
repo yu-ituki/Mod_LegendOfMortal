@@ -1,0 +1,11 @@
+{
+    "modid": "yu-ituki.ats.speedchange",
+    "name": "Mod_SpeedChange",
+    "version": "1.0.0",
+    "author": "yu-ituki",
+    "description": "A mod that adds a shortcut to change the game speed.",
+    "game": "againstthestorm",
+    "category": "Gameplay",
+    "dependencies": []
+  }
+  
