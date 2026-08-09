@@ -129,7 +129,7 @@ public class NewGamePlusUI : MonoBehaviour
 		// 3. 設定ダイアログ
 		if (m_IsOpen) {
 			float winW = 600f * scaleX;
-			float winH = 420f * scaleY;
+			float winH = 460f * scaleY; // トグル項目が1つ増えたため高さを拡張(420f -> 460f)
 			float winX = (nativeW - winW) / 2f;
 			float winY = (nativeH - winH) / 2f;
 
@@ -157,6 +157,8 @@ public class NewGamePlusUI : MonoBehaviour
 
 		DrawCustomToggle(eCarryOverOptions.Stats, "プレイヤーステータスを引き継ぐ", scale, scaleY);
 		GUILayout.Space(10f * scaleY);
+		DrawCustomToggle(eCarryOverOptions.Personality, "性格（性情・處世・修養・道德）を引き継ぐ", scale, scaleY);
+		GUILayout.Space(10f * scaleY);
 		DrawCustomToggle(eCarryOverOptions.Affection, "好感度を引き継ぐ", scale, scaleY);
 		GUILayout.Space(10f * scaleY);
 		DrawCustomToggle(eCarryOverOptions.SectAssets, "門派資産を引き継ぐ", scale, scaleY);
@@ -176,7 +178,7 @@ public class NewGamePlusUI : MonoBehaviour
 
 	private void DrawCustomToggle(eCarryOverOptions flag, string text, float scale, float scaleY) {
 		bool isOptionActive = (m_Options & flag) != 0;
-		string prefix = isOptionActive ? "[✓] " : "[  ] ";
+		string prefix = isOptionActive ? "[✓] " : "[   ] ";
 
 		var btnStyle = new GUIStyle(GUI.skin.label) {
 			fontSize = Mathf.RoundToInt(20f * scale),
