@@ -14,11 +14,6 @@ namespace Mod
 	public class Plugin : BaseUnityPlugin
 	{
 		private const string QUICK_SAVE_SLOT = "quicksave";
-		private static string[] c_SaveEnableDialogNames = new string[] {
-			"TalkMenuDialog",
-			"SectionFree01_MenuDialog",
-			"MeetMenuDialog",
-		};
 
 		public static Plugin Instance { get; private set; }
 
@@ -87,19 +82,22 @@ namespace Mod
 				ShowNotification($"[QuickSave] 現在のシーン('{currentScene}')ではセーブできません。");
 				return false;
 			}
-				
-			// Story状態でも特定メニュー（SectionFree01_MenuDialog）のときだけ許可する
+
+			// Story状態でも自由行動メニューのときだけセーブを許可する判定.
 			if (currentScene == "Story") {
 				var dialog = Fungus.MenuDialog.ActiveMenuDialog;
 
-				// 判定ロジック:
-				// 1. dialog が null、またはアクティブでない場合は不可
-				// 2. 名前が "SectionFree01_MenuDialog" で始まらない場合は不可
-				DebugUtil.LogWarning($"!!!!!!!!!!!!!!{dialog.name}");
+				// 1. アクティブなMenuDialogが存在しない場合は弾く
+				if (dialog == null || !dialog.gameObject.activeInHierarchy) {
+					ShowNotification("[QuickSave] 会話中のためセーブできません。");
+					return false;
+				}
 
-				bool isActiveDialog = dialog != null && dialog.gameObject.activeInHierarchy;
-				bool isTargetDialog = isActiveDialog && System.Array.Exists(c_SaveEnableDialogNames, (v) => dialog.name.StartsWith(v));
-				if (!isTargetDialog) {
+				// 2. オリジナルの CustomMenuDialog または BreakOptionButton を持っているか判定
+				bool isCustomMenu = dialog.GetComponent<Mortal.Core.CustomMenuDialog>() != null;
+				bool hasBreakOptions = dialog.GetComponentInChildren<Mortal.Core.BreakOptionButton>() != null;
+
+				if (!isCustomMenu && !hasBreakOptions) {
 					ShowNotification("[QuickSave] 会話中のためセーブできません。");
 					return false;
 				}
