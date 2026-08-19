@@ -30,10 +30,81 @@ namespace Mod
 		private static Type _fungusWriterType;
 		private static FieldInfo _continueButtonField;
 
+		// GUI用変数 (基準解像度 1920x1080 に基づく座標とサイズ)
+		private const float BaseWidth = 1920f;
+		private const float BaseHeight = 1080f;
+		private bool _showConfigWindow = false;
+		private Rect _windowRect = new Rect(50, 50, 420, 220);
+
 		private void Awake() {
 			Instance = this;
 			MyModManager.Instance.Initialize<ModConfig>(this, Logger, ModInfo.c_ModFullName, ModInfo.c_ModName, ModInfo.c_ModVersion);
 			MyModManager.Instance.RegisterOnBootAction(OnBoot);
+		}
+
+		private void Update() {
+			if (ModConfig != null && Input.GetKeyDown(ModConfig.ToggleMenuKey.Value)) {
+				_showConfigWindow = !_showConfigWindow;
+			}
+		}
+
+		private void OnGUI() {
+			if (!_showConfigWindow || ModConfig == null) return;
+
+			// 元の GUI.matrix を退避
+			Matrix4x4 originalMatrix = GUI.matrix;
+
+			// 解像度に応じたスケーリング行列を計算・適用
+			float scaleX = Screen.width / BaseWidth;
+			float scaleY = Screen.height / BaseHeight;
+			GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(scaleX, scaleY, 1.0f));
+
+			// スケーリングされた仮想座標系でウィンドウを描画
+			_windowRect = GUI.Window(9999, _windowRect, DrawConfigWindow, "Fix Auto Msg Speed");
+
+			// GUI.matrix を元に戻す
+			GUI.matrix = originalMatrix;
+		}
+
+		private void DrawConfigWindow(int windowId) {
+			// 解像度スケールに合わせたフォント・コントロールサイズの設定
+			GUIStyle titleStyle = new GUIStyle(GUI.skin.label) {
+				fontSize = 20,
+				fontStyle = FontStyle.Bold
+			};
+
+			GUIStyle valueStyle = new GUIStyle(GUI.skin.label) {
+				fontSize = 18,
+				alignment = TextAnchor.MiddleLeft
+			};
+
+			GUIStyle buttonStyle = new GUIStyle(GUI.skin.button) {
+				fontSize = 18
+			};
+
+			GUILayout.Space(15);
+
+			float currentVal = ModConfig.AutoSecondsPerChar.Value;
+			GUILayout.Label($"1文字あたりの秒数: {currentVal:F3}s", valueStyle);
+
+			GUILayout.Space(10);
+
+			// スライダーの描画（高さを少し広げて操作性を向上）
+			float newVal = GUILayout.HorizontalSlider(currentVal, 0.005f, 0.7f, GUILayout.Height(30));
+
+			if (Math.Abs(newVal - currentVal) > 0.0001f) {
+				ModConfig.AutoSecondsPerChar.Value = (float)Math.Round(newVal, 3);
+				Config.Save();
+			}
+
+			GUILayout.Space(15);
+
+			if (GUILayout.Button("Close", buttonStyle, GUILayout.Height(36))) {
+				_showConfigWindow = false;
+			}
+
+			// ウィンドウのドラッグ領域設定
+			GUI.DragWindow(new Rect(0, 0, 10000, 30));
 		}
 
 		private void OnBoot() {
@@ -89,16 +160,13 @@ namespace Mod
 		}
 
 		private static IEnumerator AutoAdvanceRoutine_Jp(Button continueButton, string text) {
-			// 1. タイピング描画完了（ボタンがアクティブになる）を待機
 			while (continueButton != null && !continueButton.gameObject.activeInHierarchy) {
 				yield return null;
 			}
 
-			// 2. 読了待機
 			float waitTime = CalculateWaitSeconds(text);
 			yield return new WaitForSecondsRealtime(waitTime);
 
-			// 3. 次へ送る
 			TryClickButton(continueButton);
 			_currentAutoRoutine = null;
 		}
@@ -123,7 +191,6 @@ namespace Mod
 		}
 
 		private static IEnumerator RunWriterThenWait_Vanilla(IEnumerator original, MonoBehaviour writerMb) {
-			// 1. 元のタイピング処理を完走させる
 			while (true) {
 				bool moved = false;
 				try { moved = original.MoveNext(); } catch { yield break; }
@@ -133,12 +200,10 @@ namespace Mod
 
 			if (writerMb == null) yield break;
 
-			// 2. 読了待機
 			var textComp = writerMb.GetComponentInChildren<Text>(true);
 			float waitTime = CalculateWaitSeconds(textComp != null ? textComp.text : null);
 			yield return new WaitForSecondsRealtime(waitTime);
 
-			// 3. 次へ送る
 			if (_fungusSayDialogType != null) {
 				var sayDialog = writerMb.GetComponentInParent(_fungusSayDialogType);
 				if (sayDialog != null) {
