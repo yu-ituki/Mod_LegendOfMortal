@@ -1,63 +1,41 @@
-### README.md
+# Mod_AutoAdvance (活俠傳 / Legend of Mortal)
 
-```markdown
-# Mod_QuickSaveLoad (活俠傳 / Legend of Mortal)
-
-ゲーム内に「クイックセーブ」および「クイックロード」の機能を追加する BepInEx Mod です。
+会話メッセージの自動送り待機時間を調整できるようにする BepInEx Mod です。
 
 ## 概要
-* 指定したキーを押すことで、いつでもクイックセーブ / クイックロードを実行できます。
-* キー設定はコンフィグファイルから自由に変更可能です。
+* ゲーム中に専用の設定ウィンドウを開き、スライダーを操作して直感的に自動文字送りスピードを変更できます。
+* スライダーの変更内容はリアルタイムに反映され、コンフィグファイルへ自動で保存されます。
+* 有志日本語化Mod環境およびバニラ環境の双方に対応しています。
 
 ---
 
 ## 使い方 (操作方法)
 
-* **[F6]**: クイックセーブを実行（デフォルト）
-* **[F9]**: クイックロードを実行（デフォルト）
+Mod導入後、ゲーム中のオート挙動が自動的に置き換わります。  
+  
+F1（デフォルト設定）で設定ウィンドウが開き、「1文字あたりの待機秒数」を調整可能です。  
 
 ---
 
 ## コンフィグ（設定変更）
 
-初回ゲーム起動時、以下のパスに設定ファイルが自動生成されます。
+初回ゲーム起動時、以下のパスに設定ファイルが自動生成されます。  
+  
+`ゲームフォルダ/BepInEx/config/com.yu-ituki.mortal.fix-auto-msg.cfg`
 
-`ゲームフォルダ/BepInEx/config/Mod_QuickSaveLoad.cfg`
-
-テキストエディタ（メモ帳など）で開き、割り当てるキーを変更することができます。
+ゲーム内のGUIからだけでなく、テキストエディタ（メモ帳など）で開いて直接数値を設定することも可能です。
 
 ```ini
+[AutoMessage]
+
+## 表示完了後の読了待機時間（1文字あたりの秒数）
+# Setting type: Single
+# Default value: 0.2
+SecondsPerChar = 0.2
+
 [General]
 
-## Quick saveに割り当てるキー
+## 設定ウィンドウを開閉するキー
 # Setting type: KeyCode
-# Default value: F6
-QuickSaveKey = F6
-
-## Quick loadに割り当てるキー
-# Setting type: KeyCode
-# Default value: F9
-QuickLoadKey = F9
-
-```
-
-### 設定可能なキー（例）
-
-* ファンクションキー: `F1` ～ `F12`
-* アルファベット: `A` ～ `Z`
-* 数字: `Alpha0` ～ `Alpha9` （テンキーは `Keypad0` ～ `Keypad9`）
-* その他: `Space`, `Return` (Enter), `Tab`, `LeftShift` など
-
-※使用可能なキー名は [Unity KeyCode](https://docs.unity3d.com/ScriptReference/KeyCode.html) の表記に準拠しています。
-
----
-
-## インストール方法
-
-1. [BepInEx](https://github.com/BepInEx/BepInEx) をゲームに導入します。
-2. ビルドした `Mod_QuickSaveLoad.dll` を `ゲームフォルダ/BepInEx/plugins/` フォルダ内に配置します。
-3. ゲームを起動します。
-
-```
-
-```
+# Default value: F1
+ToggleMenuKey = F1
