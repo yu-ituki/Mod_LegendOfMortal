@@ -6,7 +6,7 @@ using System;
 using System.Collections;
 using UnityEngine;
 using Fungus;
-
+using System.Reflection;
 
 namespace Mod
 {
@@ -24,10 +24,17 @@ namespace Mod
 		private bool m_IsShowingNotification = false;
 		private Coroutine m_NotificationCoroutine;
 
-
+		// --- 安全ロード用静的ガード（シーンを跨いでも絶対に破棄されない） ---
+		private static bool s_IsLoadingLocked = false;
 
 		private void Awake() {
+			if (Instance != null) {
+				Destroy(gameObject);
+				return;
+			}
 			Instance = this;
+			DontDestroyOnLoad(gameObject); // シーン遷移でコルーチンとガードが蒸発するのを防止
+
 			MyModManager.Instance.Initialize<ModConfig>(this, this.Logger, ModInfo.c_ModFullName, ModInfo.c_ModName, ModInfo.c_ModVersion);
 			MyModManager.Instance.RegisterOnBootAction(OnBoot);
 		}
@@ -45,137 +52,169 @@ namespace Mod
 			if (SaveSystem.Instance == null || ModConfig == null)
 				return;
 
+			// ゲーム本体がロード中、またはクイックロード中は連打を完全無視
+			if (s_IsLoadingLocked)
+				return;
+
+			var sc = SceneController.Instance;
+			if (sc != null && (sc.IsPrepare || sc.IsLoading))
+				return;
+
 			if (Input.GetKeyDown(ModConfig.QuickSaveKey.Value))
 				QuickSave();
 
 			if (Input.GetKeyDown(ModConfig.QuickLoadKey.Value))
-				QuickLoad();
+				ExecuteSafeLoad(QUICK_SAVE_SLOT);
 		}
-		
-		/// <summary>
-		/// クイックセーブの実行処理（内部で安全性をチェックして判定・弾く）
-		/// </summary>
-		/// <returns>セーブが正常に実行された場合は true、弾かれたまたは失敗した場合は false</returns>
+
 		public bool QuickSave() {
 			var sc = SceneController.Instance;
-			if (sc == null) {
-				DebugUtil.LogWarning("[QuickSave] SceneController が存在しないためセーブできません。");
+			if (sc == null || sc.IsPrepare || sc.IsLoading || s_IsLoadingLocked) {
 				return false;
 			}
 
-			// 1. ロード中・準備中はセーブ不可
-			if (sc.IsPrepare || sc.IsLoading) {
-				DebugUtil.LogWarning("[QuickSave] シーン準備中またはロード中のためセーブできません。");
-				return false;
-			}
-
-			// 2. シーンによる制限（会話中・タイトル画面・バトル中などはセーブ不可）
 			string currentScene = sc.CurrentScene;
 			if (currentScene == "Title" ||
-				//currentScene == "Story" ||
 				currentScene == "Battle" ||
 				currentScene == "Combat" ||
 				currentScene == "GameOver" ||
 				currentScene == "End" ||
-				currentScene == "DemoEnd") 
-			{
+				currentScene == "DemoEnd") {
 				ShowNotification($"[QuickSave] 現在のシーン('{currentScene}')ではセーブできません。");
 				return false;
 			}
 
-			// Story状態でも自由行動メニューのときだけセーブを許可する判定.
 			if (currentScene == "Story") {
 				var dialog = Fungus.MenuDialog.ActiveMenuDialog;
-
-				// 1. アクティブなMenuDialogが存在しない場合は弾く
 				if (dialog == null || !dialog.gameObject.activeInHierarchy) {
 					ShowNotification("[QuickSave] 会話中のためセーブできません。");
 					return false;
 				}
 
-				// 2. オリジナルの CustomMenuDialog または BreakOptionButton を持っているか判定
 				bool isCustomMenu = dialog.GetComponent<Mortal.Core.CustomMenuDialog>() != null;
 				bool hasBreakOptions = dialog.GetComponentInChildren<Mortal.Core.BreakOptionButton>() != null;
-
 				if (!isCustomMenu && !hasBreakOptions) {
 					ShowNotification("[QuickSave] 会話中のためセーブできません。");
 					return false;
 				}
 			}
+
 			try {
 				SaveSystem.Instance.SaveGameData(QUICK_SAVE_SLOT);
 				DebugUtil.Log($"[QuickSave] スロット '{QUICK_SAVE_SLOT}' にクイックセーブしました。");
-
-				// --- 成功時の通知コルーチン開始 ---
 				ShowNotification("finish quick save", 2.0f);
-
 				return true;
-			} catch (System.Exception ex) {
+			} catch (Exception ex) {
 				ShowNotification($"[QuickSave] クイックセーブ失敗: {ex.Message}");
 				return false;
 			}
 		}
 
-		/// <summary>
-		/// クイックロードの実行処理（内部で安全性をチェックして判定・弾く）
-		/// </summary>
-		/// <returns>ロードが正常に開始された場合は true、弾かれたまたは失敗した場合は false</returns>
 		public bool QuickLoad() {
-			var saveData = SaveSystem.Instance.GetSaveData(QUICK_SAVE_SLOT);
-			if (saveData == null) {
-				ShowNotification($"[QuickSave] スロット '{QUICK_SAVE_SLOT}' のデータが存在しません。");
+			return ExecuteSafeLoad(QUICK_SAVE_SLOT);
+		}
+
+		private bool ExecuteSafeLoad(string slot) {
+			if (SaveSystem.Instance == null || s_IsLoadingLocked)
 				return false;
-			}
 
 			var sc = SceneController.Instance;
-			if (sc == null) {
-				ShowNotification($"[QuickSave] SceneController が存在しないためロードできません。");
+			if (sc != null && (sc.IsPrepare || sc.IsLoading))
 				return false;
-			}
 
-			// シーン準備中・ロード中の連打や割込み防止ガード
-			if (sc.IsPrepare || sc.IsLoading) {
-				ShowNotification($"[QuickSave] シーン準備中またはロード中のためロードをキャンセルしました。");
-				return false;
-			}
+			StartCoroutine(SafeLoadCoroutine(slot));
+			return true;
+		}
 
+		private IEnumerator SafeLoadCoroutine(string slot) {
+			// ロード開始直後に即時ロック
+			s_IsLoadingLocked = true;
+			DebugUtil.Log("[QuickSave] SafeLoad: cleanup and start load pipeline...");
+
+			// 1. 会話・ダイアログ・Flowchart の安全破棄
+			CleanupBeforeLoad();
+			yield return null;
+
+			// 2. 公式ロードシーケンスの実行（例外が起きても finally で確実にロック解除）
 			try {
-				// 1. スロットのセット
-				SaveSystem.Instance.SetSlot(QUICK_SAVE_SLOT);
+				SaveSystem.Instance.SetSlot(slot);
 
-				// 2. BGMの停止（ロード時の自然な音切り替えのため）
-				if (SoundManager.Instance != null) {
+				if (SoundManager.Instance != null)
 					SoundManager.Instance.StopMusic();
-				}
 
-				// 3. セーブデータの読み込み
+				// ゲーム本体のセーブデータ読み込みと更新
 				SaveSystem.Instance.LoadGameData();
-
-				// 4. 周回データ/全般データの保存更新
 				SaveSystem.Instance.SaveUniverseData();
 
-				// 5. ミッション/イベントフラグ状態の更新
-				if (MissionManagerData.Instance != null) {
+				if (MissionManagerData.Instance != null)
 					MissionManagerData.Instance.UpdateCheckMissions();
+
+				// シーン再ロードを発火
+				var sc = SceneController.Instance;
+				if (sc != null)
+					sc.LoadCurrentScene();
+
+				DebugUtil.Log($"[QuickSave] SafeLoad: slot '{slot}' loaded.");
+				ShowNotification("finish quick load", 2.0f);
+			} catch (Exception ex) {
+				DebugUtil.LogWarning($"[QuickSave] SafeLoad failed: {ex.Message}");
+				ShowNotification($"[QuickSave] クイックロード失敗: {ex.Message}");
+			}
+
+			// 3. シーンの切り替え完了待機（IsPrepare / IsLoading が終わるまで確実に待つ）
+			yield return new WaitForSecondsRealtime(0.1f);
+
+			float timer = 0f;
+			while (timer < 30f) {
+				var sc = SceneController.Instance;
+				if (sc != null && !sc.IsPrepare && !sc.IsLoading) {
+					break;
+				}
+				timer += Time.unscaledDeltaTime;
+				yield return null;
+			}
+
+			// ロード完了後の安定待ちインターバル（連打対策）
+			yield return new WaitForSecondsRealtime(0.5f);
+
+			// ガード解除
+			s_IsLoadingLocked = false;
+			DebugUtil.Log("[QuickSave] SafeLoad finished, lock released.");
+		}
+
+		private void CleanupBeforeLoad() {
+			try {
+				var say = Fungus.SayDialog.ActiveSayDialog;
+				if (say != null) {
+					try { say.StopAllCoroutines(); } catch { }
+					try { say.gameObject.SetActive(false); } catch { }
 				}
 
-				// 6. 画面・シーンの読み込み＆描画切替
-				sc.LoadCurrentScene();
+				var menu = Fungus.MenuDialog.ActiveMenuDialog;
+				if (menu != null) {
+					try { menu.StopAllCoroutines(); } catch { }
+					try { menu.gameObject.SetActive(false); } catch { }
+				}
 
-				DebugUtil.Log($"[QuickSave] スロット '{QUICK_SAVE_SLOT}' からクイックロードし、画面を切り替えました。");
+				var flowcharts = GameObject.FindObjectsOfType<Fungus.Flowchart>();
+				foreach (var fc in flowcharts) {
+					try {
+						var mi = fc.GetType().GetMethod("StopAllBlocks", BindingFlags.Public | BindingFlags.Instance);
+						if (mi != null) {
+							mi.Invoke(fc, null);
+						} else {
+							fc.StopAllCoroutines();
+						}
+					} catch { }
+					try { fc.gameObject.SetActive(false); } catch { }
+				}
 
-				// --- 成功時の通知コルーチン開始 ---
-				ShowNotification("finish quick load", 2.0f);
-
-				return true;
-			} catch (System.Exception ex) {
-				ShowNotification($"[QuickSave] クイックロード失敗: {ex.Message}");
-				return false;
-			}
+				Time.timeScale = 1f;
+			} catch { }
 		}
 
 		// ==========================================
-		// UI通知表示用メソッド・コルーチン
+		// UI通知表示用メソッド
 		// ==========================================
 
 		private void ShowNotification(string text, float duration = 1.0f) {
@@ -189,7 +228,7 @@ namespace Mod
 			m_NotificationText = text;
 			m_IsShowingNotification = true;
 
-			yield return new WaitForSeconds(duration);
+			yield return new WaitForSecondsRealtime(duration);
 
 			m_IsShowingNotification = false;
 			m_NotificationText = "";
@@ -206,7 +245,6 @@ namespace Mod
 				normal = { textColor = Color.white }
 			};
 
-			// 画面の中央上部に幅 220px, 高さ 45px の枠を表示
 			float width = 220f;
 			float height = 45f;
 			float x = (Screen.width - width) / 2f;
@@ -215,6 +253,5 @@ namespace Mod
 			GUI.Box(new Rect(x, y, width, height), "");
 			GUI.Label(new Rect(x, y, width, height), m_NotificationText, style);
 		}
-
 	}
 }
